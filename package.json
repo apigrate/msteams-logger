@@ -1,7 +1,7 @@
 {
-  "name": "apitemplate",
+  "name": "msteams-logger",
   "version": "1.0.0",
-  "description": "Template for creating NodeJS API SDKs/Connectors",
+  "description": "A logging utility using MS Teams inbound webhooks.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -14,7 +14,7 @@
     "API"
   ],
   "author": "Derek R. Gau",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/apigrate/api-connector-template/issues"
   },
@@ -24,8 +24,6 @@
     "jest": "^26.0.1"
   },
   "dependencies": {
-    "debug": "^4.1.1",
-    "node-fetch": "^2.6.0",
-    "query-string": "^6.13.0"
+    "node-fetch": "^2.6.7"
   }
 }

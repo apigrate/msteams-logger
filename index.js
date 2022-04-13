@@ -1,105 +1,184 @@
+/*
+  MIT License
+
+  Copyright (c) 2022 Apigrate LLC
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
 const fetch = require('node-fetch');
-const qs = require('query-string');
-const debug = require('debug')('gr8:myapi');
-const verbose = require('debug')('gr8:myapi:verbose');
-class Connector {
-  constructor(){
 
+/**
+  A logging tool for working with MS Teams Inbound webhooks. It is intended for logging
+  application automation transactions in MS Teams, providing transparency about how
+  automation solutions are performing.
+
+    By convention, these colors are used for attachment content theming: 
+    success=false: color #CC0000
+    success=true: color #00AA00
+
+    By convention, these emojis are used for consistency
+    question messages respectively.
+    success=false: 	:x:
+    success=true: :white_check_mark:
+
+  @param {string} inbound_webhook the inbound webhook to use (you must configure this in MS Teams)
+  @param {string} username the displayed username in the channel. Because the username groups together like messages on the channel, 
+  a good convention is to set the username to:
+  - the of the environment ("AWS test environment", "production environment")
+  - or the symbolic name of the server
+  @param {string} application_name name of the application_name.
+  @param {*} options there are two supported options:
+  @param {object} fields a hash of properties that will be added as "facts"" on every msteams entry produced by this logger. Message-specific fields can be added 
+  as part of the `.log()` method.
+  @example
+  {
+    fields: {
+      "account": "abc123",
+      "apigrate_account": 107
+    }
   }
 
-  /**
-   * Internal method to make an API call using node-fetch.
-   * 
-   * @param {string} method GET|POST|PUT|DELETE
-   * @param {string} url api endpoint url (without query parameters)
-   * @param {object} query hash of query string parameters to be added to the url
-   * @param {object} payload for POST, PUT methods, the data payload to be sent
-   * @param {object} options hash of additional options
-   */
-  async doFetch(method, url, query, payload, options){
-    
-    let fetchOpts = {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Apigrate NodeJS Connector/1.0.0"
-      },
-    };
-    
-    let qstring = '';
-    if(query){
-      qstring = qs.stringify(query);
-      qstring = '?'+qstring;
+  @version 0.1.0
+*/
+const success_color = '00AA00';
+const success_emoji = '\u2705';
+const failure_color = 'CC0000';
+const failure_emoji = '\u274c';
+class MSTeamsLogger{
+  constructor(inbound_webhook, username, application_name, options){
+    if( !inbound_webhook || !username || !application_name ){
+      throw new Error("Misconfigured MS Teams Logger. The inbound_webhook, username, and application_name parameters are all required.");
     }
-    let full_url = `${url}${qstring}`;
-    
-
-    if(payload){
-      fetchOpts.body = JSON.stringify(payload);
-    }
-
-    let result = null;
-    try{
-      debug(`${method} ${full_url}`);
-      verbose(`  payload: ${JSON.stringify(payload)}`);
-      
-      let response = await fetch(full_url, fetchOpts);
-
-      let result = null;
-      if(response.ok){
-        debug(`  ...OK HTTP-${response.status}`);
-        result = await response.json();
-        verbose(`  response payload: ${JSON.stringify(result)}`);
-        return result;
-      }
-
-      if(!response.ok){
-        this.handleNotOk(response)
-      }
-
-    }catch(err){
-      //Unhandled errors are noted and re-thrown.
-      console.error(err);
-      throw err;
+    this.inbound_webhook = inbound_webhook;
+    this.username = username;
+    this.application_name = application_name;
+    this.options = options;
+    if (!options) {
+      this.options = {};
     }
   }
 
   /**
-   * Handles API errors in a consistent manner.
-   * @param {object} response the fetch response (without any of the data methods invoked) 
-   * @param {string} url the full url used for the API call
-   * @param {object} fetchOpts the options used by node-fetch
-   */
-  async handleNotOk(response, url, fetchOpts){
-    debug(`  ...Error. HTTP-${response.status}`);
-    
-    //Note: Some APIs return HTML or text depending on status code...
-    result = await response.json();
-    if (response.status >=300 & response.status < 400){
-      //redirection
-    } else if (response.status >=400 & response.status < 500){
-      //client errors
-      if(response.status === 401 || response.status === 403){
-        debug(result.error);
-        //If OAuth, catch this error to retry after refreshing tokens. 
-        throw new ApiAuthError(JSON.stringify(result));
-      }
-      //result = await response.json(); 
-      verbose(`  response payload: ${JSON.stringify(result)}`);
-    } else if (response.status >=500) {
-      //server side errors
-      //result = await response.json();
-      verbose(`  response payload: ${JSON.stringify(result)}`);
+    An async method to log a message to MS Teams.
+
+    @param {boolean} success (required) whether the transaction succeeded or failed.
+    @param {string} summary (required) a short summary message (i.e. "synced ok", "error processing account", etc.)
+    @param {string} details (optional) details to be displayed in a fixed-width font block under the message. Use this to output transcript info.
+    Up to 7500 characters will be written, after which the data will be truncated.
+    @param {object} fields (optional) hash of properties that will be added as "facts" on this particular msteams entry. 
+    These provided in addition to any existing global fields.
+    @returns {boolean} indicating success or failure. Note MS Teams message failures (e.g. due to throttling) are handled and output to 
+    console.error. They are **not** thrown as errors.
+  */
+  async log(success, summary, details, fields) {
+    if( success === null || !summary ){
+      console.error("Invalid MS Teams Logger log() invocation. The success and summary parameters are required.");
+      return false;
+    }
+
+    var color = success_color;
+    var emoji = "";
+    if (success) {
+      color = success_color;
+      emoji = success_emoji;
     } else {
-      throw err; //Cannot be handled.
+      color = failure_color;
+      emoji = failure_emoji;
     }
-    return result;
-  }
 
+    var title = (emoji + ' ' + summary).trim();
+
+    var text = "";
+    if (details) {
+      if (details.length > 7500) {
+        text = details.substr(0, 7500) + "...";
+      } else {
+        text = details;
+      }
+    }
+
+    if (text && text.trim().length > 0) {
+      text = "```" + text;
+    }
+
+    var msteams_message = {
+      "@type": "MessageCard",
+      "@context": "https://schema.org/extensions",
+      "summary": title,
+      "themeColor": color,
+      "title": title,
+      "sections": [
+        {
+          "activityTitle": this.application_name,
+          "activitySubtitle": this.username,
+          "facts": [],
+          "activityText": text
+        }
+      ]
+    };
+
+    //global fields
+    if(this.options && this.options.fields){
+      for(let name in this.options.fields){
+        let val = this.options.fields[name];
+        msteams_message.sections[0].facts.push({
+          name,
+          value: `${val}`,
+        });
+      }
+    }
+
+    //specific fields
+    if(fields){
+      for(let name in fields){
+        let val = fields[name];
+        msteams_message.sections[0].facts.push({
+          name,
+          value: `${val}`,
+        });
+      }
+    }
+
+console.log(JSON.stringify(msteams_message,null,2));
+    try{
+      let response = await fetch(this.inbound_webhook, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(msteams_message)
+      });
+  
+      if(response.ok){
+        return true;
+      } else {
+        let result = await response.text();
+        console.error(`MS Teams returned an error (HTTP-${response.status}): ${result}`);
+        return false;
+      }
+    }catch(ex){
+      console.error(`MS TeamsLogger exception.`);
+      console.error(ex);
+      return false;
+    }
+
+  }
 }
 
-class ApiError extends Error {};
-class ApiAuthError extends Error {};
-exports.Connector = Connector;
-exports.ApiError = ApiError;
-exports.ApiAuthError = ApiAuthError;
+module.exports=MSTeamsLogger;
