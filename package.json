@@ -1,0 +1,31 @@
+{
+  "name": "apitemplate",
+  "version": "1.0.0",
+  "description": "Template for creating NodeJS API SDKs/Connectors",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apigrate/api-connector-template.git"
+  },
+  "keywords": [
+    "API"
+  ],
+  "author": "Derek R. Gau",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/apigrate/api-connector-template/issues"
+  },
+  "homepage": "https://github.com/apigrate/api-connector-template#readme",
+  "devDependencies": {
+    "dotenv": "^8.2.0",
+    "jest": "^26.0.1"
+  },
+  "dependencies": {
+    "debug": "^4.1.1",
+    "node-fetch": "^2.6.0",
+    "query-string": "^6.13.0"
+  }
+}
