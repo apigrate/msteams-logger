@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apigrate/api-connector-template.git"
+    "url": "git+https://github.com/apigrate/msteams-logger"
   },
   "keywords": [
     "API"
@@ -16,9 +16,9 @@
   "author": "Derek R. Gau",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/apigrate/api-connector-template/issues"
+    "url": "https://github.com/apigrate/msteams-logger/issues"
   },
-  "homepage": "https://github.com/apigrate/api-connector-template#readme",
+  "homepage": "https://github.com/apigrate/msteams-logger#readme",
   "devDependencies": {
     "dotenv": "^8.2.0",
     "jest": "^26.0.1"
