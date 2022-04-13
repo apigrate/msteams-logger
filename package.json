@@ -1,6 +1,6 @@
 {
   "name": "msteams-logger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A logging utility using MS Teams inbound webhooks.",
   "main": "index.js",
   "scripts": {
