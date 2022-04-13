@@ -54,7 +54,7 @@ const fetch = require('node-fetch');
     }
   }
 
-  @version 0.1.0
+  @version 1.0.0
 */
 const success_color = '00AA00';
 const success_emoji = '\u2705';
@@ -155,7 +155,6 @@ class MSTeamsLogger{
       }
     }
 
-console.log(JSON.stringify(msteams_message,null,2));
     try{
       let response = await fetch(this.inbound_webhook, {
         method: 'POST',
